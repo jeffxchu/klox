@@ -17,7 +17,7 @@ fun main(args: Array<String>) {
             "Binary   : Expr left, Token operator, Expr right",
             "Grouping : Expr expression",
             "Literal  : Any value",
-            "Unary    : Token operator, Expr right"
+            "Unary    : Token operator, Expr right",
         )
     )
 }
@@ -31,6 +31,9 @@ class GenerateAst {
         writer.write("package com.craftinginterpreters.lox\n\n")
         writer.write("abstract class $baseName {\n\n")
 
+        defineVisitor(writer, baseName, types)
+
+        // The AST classes
         for (type in types) {
             val className = type.split(":")[0].trim()
             val fields = type.split(":")[1].trim()
@@ -41,8 +44,21 @@ class GenerateAst {
                 fields = fields
             )
         }
+
+        // The base accept() method
+        writer.write("    abstract fun <T> accept(visitor: Visitor<T>): T\n")
+
         writer.write("}")
         writer.close()
+    }
+
+    private fun defineVisitor(writer: FileWriter, baseName: String, types: List<String>) {
+        writer.write("    interface Visitor<T> {\n")
+        for (type in types) {
+            val typeName = type.split(":")[0].trim()
+            writer.write("        fun visit$typeName$baseName(${baseName.lowercase()}: $typeName): T\n")
+        }
+        writer.write("    }\n\n")
     }
 
     private fun defineType(writer: FileWriter, baseName: String, className: String, fields: String) {
@@ -53,6 +69,13 @@ class GenerateAst {
             val name = field.split(" ")[1]
             writer.write("        val $name: $type,\n")
         }
-        writer.write("    ): $baseName()\n\n")
+        writer.write("    ): $baseName() {\n\n")
+
+        // Visitor pattern
+        writer.write("        override fun <T> accept(visitor: Visitor<T>): T {\n")
+        writer.write("            return visitor.visit$className$baseName(this)\n")
+        writer.write("        }\n")
+
+        writer.write("    }\n\n")
     }
 }
